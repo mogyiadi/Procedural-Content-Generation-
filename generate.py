@@ -13,14 +13,14 @@ def get_random_wall_block():
         "mossy_cobblestone", "mossy_stone_bricks",
         "cracked_stone_bricks"
     ]
-    
+
     # 10 percent chance for stairs to add detail
     if random.random() < 0.10:
         dirs = ["north", "south", "east", "west"]
         halfs = ["bottom", "top"]
         mat = random.choice(['stone_brick', 'cobblestone'])
         return Block(mat + "_stairs", {"facing": random.choice(dirs), "half": random.choice(halfs)})
-        
+
     return Block(random.choice(blocks))
 
 # gets roof block for towers
@@ -30,15 +30,15 @@ def get_random_roof_block():
 
 # checks if window goes here
 def is_window_column(dx, dz):
-    if dz == -20 and dx % 5 == 0 and abs(dx) < 23: 
+    if dz == -20 and dx % 5 == 0 and abs(dx) < 23:
         return True
-    if dz == 0 and dx % 5 == 0 and 12 < abs(dx) < 23: 
+    if dz == 0 and dx % 5 == 0 and 12 < abs(dx) < 23:
         return True
-    if abs(dx) == 25 and dz % 5 == 0 and -18 < dz < -2: 
+    if abs(dx) == 25 and dz % 5 == 0 and -18 < dz < -2:
         return True
-    if abs(dx) == 10 and dz % 5 == 0 and 2 < dz < 28: 
+    if abs(dx) == 10 and dz % 5 == 0 and 2 < dz < 28:
         return True
-    if dz == 30 and abs(dx) == 7: 
+    if dz == 30 and abs(dx) == 7:
         return True
     return False
 
@@ -71,8 +71,8 @@ def get_biome_info(editor, x, y, z):
             elif "desert" in b or "badlands" in b:
                 ground = ["smooth_sandstone", "gravel"]
     except:
-        pass # just use oak if it fails
-        
+        pass
+
     return wood_type, ground
 
 # builds small hut or deposit
@@ -82,21 +82,24 @@ def build_hut(local_x, y, local_z, h_type, wood, editor):
         for dz in range(-2, 3):
             for dy in range(1, 5):
                 editor.placeBlock((local_x + dx, y + dy, local_z + dz), Block("air"))
-    
+
     if h_type == "blacksmith":
+        # Cobblestone floor and slab roof
         for dx in range(-2, 3):
             for dz in range(-2, 3):
                 editor.placeBlock((local_x + dx, y, local_z + dz), Block("cobblestone"))
                 editor.placeBlock((local_x + dx, y + 4, local_z + dz), Block("cobblestone_slab"))
-                
+
+        # Log pillars in each corner
         for dx, dz in [(-2,-2), (2,-2), (-2,2), (2,2)]:
             for dy in range(1, 4):
                 editor.placeBlock((local_x + dx, y + dy, local_z + dz), Block(f"{wood}_log", {"axis": "y"}))
-                
+
+        # Blacksmith equipment
         editor.placeBlock((local_x, y + 1, local_z), Block("anvil"))
         editor.placeBlock((local_x + 1, y + 1, local_z + 1), Block("furnace", {"facing": "north"}))
         editor.placeBlock((local_x - 1, y + 1, local_z - 1), Block("lava_cauldron"))
-        
+
     elif h_type == "merchant":
         colors = ["red", "blue", "yellow", "green", "white"]
         c = random.choice(colors)
@@ -104,14 +107,14 @@ def build_hut(local_x, y, local_z, h_type, wood, editor):
             for dz in range(-2, 3):
                 editor.placeBlock((local_x + dx, y, local_z + dz), Block(f"{wood}_planks"))
                 editor.placeBlock((local_x + dx, y + 3, local_z + dz), Block(f"{c}_wool"))
-                
+
         for dx, dz in [(-2,-2), (2,-2), (-2,2), (2,2)]:
             for dy in range(1, 3):
                 editor.placeBlock((local_x + dx, y + dy, local_z + dz), Block(f"{wood}_fence"))
-                
+
         editor.placeBlock((local_x, y + 1, local_z), Block("barrel", {"facing": "up"}))
         editor.placeBlock((local_x + 1, y + 1, local_z), Block("chest", {"facing": "north"}))
-        
+
     elif h_type == "hay":
         for dx in range(-1, 2):
             for dz in range(-1, 2):
@@ -128,11 +131,11 @@ def build_hut(local_x, y, local_z, h_type, wood, editor):
             ore = "raw_iron_block"
         else:
             ore = "raw_copper_block"
-            
+
         for dx in range(-1, 2):
             for dz in range(-1, 2):
                 editor.placeBlock((local_x + dx, y, local_z + dz), Block("cobblestone"))
-                if random.random() < 0.6: 
+                if random.random() < 0.6:
                     editor.placeBlock((local_x + dx, y + 1, local_z + dz), Block(ore))
         editor.placeBlock((local_x, y + 2, local_z), Block(ore))
 
@@ -146,20 +149,20 @@ def is_inside(dx, dz):
 
 # checks if block is wall
 def is_wall(dx, dz):
-    if not is_inside(dx, dz): 
+    if not is_inside(dx, dz):
         return False
     # check neighbours
-    if not is_inside(dx+1, dz) or not is_inside(dx-1, dz) or not is_inside(dx, dz+1) or not is_inside(dx, dz-1): 
+    if not is_inside(dx+1, dz) or not is_inside(dx-1, dz) or not is_inside(dx, dz+1) or not is_inside(dx, dz-1):
         return True
     return False
 
 # checks if block is stairs
 def is_stairs(dx, dz):
-    # Main stair run (South from keep)
-    if -2 <= dx <= 2 and 31 <= dz <= 37:
+    # Straight run going south from the keep entrance
+    if -3 <= dx <= 3 and 31 <= dz <= 37:
         return True
-    # Lower run (West towards ground)
-    if -15 <= dx <= 2 and 37 <= dz <= 40:
+    # Landing platform and the westward descent
+    if -50 <= dx <= 3 and 38 <= dz <= 43:
         return True
     return False
 
@@ -168,19 +171,20 @@ def build_castle():
     buildArea = editor.getBuildArea()
     worldSlice = editor.loadWorldSlice(buildArea.toRect(), cache=True)
     heightmap = worldSlice.heightmaps["MOTION_BLOCKING_NO_LEAVES"]
-    
+
     # find the middle
     cx = buildArea.begin.x + buildArea.size.x // 2
     cz = buildArea.begin.z + buildArea.size.z // 2
     center_y = int(heightmap[cx - buildArea.begin.x][cz - buildArea.begin.z])
-    
+
     keep_base_y = center_y + 10 # elevated
     wood, ground_textures = get_biome_info(editor, cx, center_y, cz)
     print("biome wood is:", wood)
 
-    radius = 49 
-    wall_height = 14 
-    
+    radius = 49
+    wall_height = 14
+
+    # Walk around a circle to get all the perimeter positions for the outer wall
     perimeter_points = []
     for angle in range(360):
         rad = math.radians(angle)
@@ -188,13 +192,14 @@ def build_castle():
         z_pos = int(cz + radius * math.sin(rad))
         if (x_pos, z_pos) not in perimeter_points:
             perimeter_points.append((x_pos, z_pos))
-        
-    # sort so it draws in a circle smoothly
+
+    # Sort by angle so the wall draws smoothly around the circle
     perimeter_points.sort(key=lambda p: math.atan2(p[1] - cz, p[0] - cx))
-    
+
     prev_y = None
     wall_bases = []
-    perimeter_set = set(perimeter_points)  # for fast lookup when checking surrounding heights
+    # Set version for quick membership checks
+    perimeter_set = set(perimeter_points)
 
     print("calculating wall heights...")
     for p in perimeter_points:
@@ -202,11 +207,11 @@ def build_castle():
         z = p[1]
         hx = x - buildArea.begin.x
         hz = z - buildArea.begin.z
-        
+
         # bounds check
         if 0 <= hx < buildArea.size.x and 0 <= hz < buildArea.size.z:
             ground_y = int(heightmap[hx][hz])
-            
+
             # drill down if we hit a tree (logs/leaves) to find actual ground
             while ground_y > -64:
                 block_id = worldSlice.getBlockGlobal((x, ground_y, z)).id
@@ -216,7 +221,7 @@ def build_castle():
                     break
         else:
             ground_y = 64
-            
+
         base_y = ground_y
 
         # Make walls taller if next to a cliff
@@ -237,35 +242,18 @@ def build_castle():
 
         # Ensure the wall is at least 10 blocks taller than the highest nearby point
         local_wall_h = max(wall_height, (max_surrounding_y - base_y) + 10)
-        # -----------------------------
-        
+
         # stop walls going too deep in ravines
         if prev_y is not None:
-            if prev_y - ground_y > 10: 
-                base_y = prev_y 
-            elif ground_y - prev_y > 10: 
+            if prev_y - ground_y > 10:
+                base_y = prev_y
+            elif ground_y - prev_y > 10:
                 base_y = ground_y
-                
+
         wall_bases.append((x, base_y, z, ground_y, local_wall_h))
         prev_y = base_y
-        
-    gate_cx = cx
-    gate_cz = cz + radius
 
-    # Find a consistent base Y for the gate from surrounding wall points
-    gate_base_y = None
-    for w in wall_bases:
-        if abs(w[0] - gate_cx) <= 3 and abs(w[2] - gate_cz) <= 1:
-            if gate_base_y is None or w[1] < gate_base_y:
-                gate_base_y = w[1]
-    if gate_base_y is None:
-        gate_base_y = center_y
-
-    gate_half_w = 2     # half-width of the full gate frame
-    gate_opening_w = 1  # half-width of the air opening
-    gate_opening_h = 5  # height of the air opening
-
-    print("building walls and gate...")
+    print("building walls...")
     for w in wall_bases:
         x = w[0]
         base_y = w[1]
@@ -273,58 +261,99 @@ def build_castle():
         ground_y = w[3]
         curr_wall_h = w[4]
 
-        dx_gate = x - gate_cx
-        dz_gate = abs(z - gate_cz)
-        is_gate_area = abs(dx_gate) <= gate_half_w and dz_gate <= 1
+        for y in range(base_y, base_y + curr_wall_h):
+            editor.placeBlock((x, y, z), get_random_wall_block())
+        for fy in range(base_y - 1, ground_y - 15, -1):
+            editor.placeBlock((x, fy, z), get_random_wall_block())
+        # little crenellations
+        if random.random() < 0.5:
+            editor.placeBlock((x, base_y + curr_wall_h, z), get_random_wall_block())
 
-        if is_gate_area:
-            # Use consistent base for entire gate so it forms a clean rectangle
-            for y in range(gate_base_y, gate_base_y + curr_wall_h):
-                if abs(dx_gate) <= gate_opening_w and y < gate_base_y + gate_opening_h:
-                    editor.placeBlock((x, y, z), Block("air"))
-                elif abs(dx_gate) == gate_half_w:
-                    editor.placeBlock((x, y, z), Block(f"{wood}_log", {"axis": "y"}))
-                else:
-                    editor.placeBlock((x, y, z), Block(f"{wood}_log", {"axis": "y"}))
-            # Arch across the top of the opening
-            if abs(dx_gate) <= gate_opening_w:
-                editor.placeBlock((x, gate_base_y + gate_opening_h, z), Block(f"{wood}_log", {"axis": "x"}))
-                editor.placeBlock((x, gate_base_y + gate_opening_h + 1, z), Block(f"{wood}_log", {"axis": "x"}))
-            # Fill foundation down to ground
-            for fy in range(ground_y - 5, gate_base_y):
-                editor.placeBlock((x, fy, z), Block(f"{wood}_log", {"axis": "y"}))
-        else:
-            for y in range(base_y, base_y + curr_wall_h):
-                editor.placeBlock((x, y, z), get_random_wall_block())
-            for fy in range(base_y - 1, ground_y - 15, -1):
-                editor.placeBlock((x, fy, z), get_random_wall_block())
-            # little crenellations
-            if random.random() < 0.5:
-                editor.placeBlock((x, base_y + curr_wall_h, z), get_random_wall_block())
+    print("building outer wall gate...")
+    # The gate sits on the south side of the circular wall, lined up with the keep entrance
+    gate_z_wall = cz + radius
+    # Find the lowest wall base near the gate opening
+    gate_base_y = None
+    gate_wall_h = wall_height
+    for w in wall_bases:
+        if abs(w[0] - cx) <= 3 and abs(w[2] - gate_z_wall) <= 2:
+            if gate_base_y is None or w[1] < gate_base_y:
+                gate_base_y = w[1]
+                gate_wall_h = w[4]
 
-    # Flatten / ramp the ground around the gate so it meets the gate base cleanly
-    print("flattening ground around gate...")
-    for gdx in range(-gate_half_w - 4, gate_half_w + 5):
-        for gdz in range(-8, 8):
-            gx = gate_cx + gdx
-            gz = gate_cz + gdz
+    # Fallback if no matching wall column was found
+    if gate_base_y is None:
+        gate_base_y = center_y
+
+    # Clear a 5-wide, 5-tall opening in the wall for the gate
+    for gdx in range(-2, 3):
+        gx = cx + gdx
+        for gz_off in range(-1, 2):
+            gz = gate_z_wall + gz_off
+            # Only clear blocks that are actually part of the perimeter
+            if (gx, gz) in perimeter_set:
+                for gy in range(gate_base_y, gate_base_y + 5):
+                    editor.placeBlock((gx, gy, gz), Block("air"))
+
+    # Two tall log pillars on either side of the gate
+    for side_dx in [-3, 3]:
+        gx = cx + side_dx
+        for gz_off in range(-1, 2):
+            gz = gate_z_wall + gz_off
+            for gy in range(gate_base_y, gate_base_y + 7):
+                editor.placeBlock((gx, gy, gz), Block(f"{wood}_log", {"axis": "y"}))
+            # Cap the pillar with a stripped log
+            editor.placeBlock((gx, gate_base_y + 7, gz), Block(f"stripped_{wood}_log", {"axis": "y"}))
+
+    # Crossbeam across the top
+    for gdx in range(-3, 4):
+        gx = cx + gdx
+        for gz_off in range(-1, 2):
+            gz = gate_z_wall + gz_off
+            editor.placeBlock((gx, gate_base_y + 5, gz), Block(f"{wood}_planks"))
+            editor.placeBlock((gx, gate_base_y + 6, gz), Block(f"{wood}_slab", {"type": "bottom"}))
+
+    # Wooden arch detail on front face
+    for gdx in range(-2, 3):
+        gx = cx + gdx
+        gz = gate_z_wall + 1
+        editor.placeBlock((gx, gate_base_y + 5, gz), Block(f"stripped_{wood}_log", {"axis": "x"}))
+
+    # Trapdoors along the inner sides of the gate for decoration
+    for side_dx in [-2, 2]:
+        gx = cx + side_dx
+        facing = "west" if side_dx == 2 else "east"
+        for gy in range(gate_base_y, gate_base_y + 5):
+            editor.placeBlock((gx, gy, gate_z_wall - 1), Block(f"{wood}_trapdoor", {"facing": facing, "open": "true", "half": "bottom"}))
+            editor.placeBlock((gx, gy, gate_z_wall + 1), Block(f"{wood}_trapdoor", {"facing": facing, "open": "true", "half": "bottom"}))
+
+    # Lanterns hanging from the crossbeam
+    editor.placeBlock((cx - 1, gate_base_y + 4, gate_z_wall + 1), Block("lantern", {"hanging": "true"}))
+    editor.placeBlock((cx + 1, gate_base_y + 4, gate_z_wall + 1), Block("lantern", {"hanging": "true"}))
+
+    # Banner decorations on the pillars
+    for side_dx in [-3, 3]:
+        gx = cx + side_dx
+        editor.placeBlock((gx, gate_base_y + 6, gate_z_wall + 2), Block("red_banner", {"rotation": "8"}))
+
+    # Clear the area outside the gate so there's a walkable approach
+    print("clearing area outside the gate...")
+    for gdx in range(-4, 5):
+        # 8 blocks outward from the wall
+        for gz_off in range(2, 10):
+            gx = cx + gdx
+            gz = gate_z_wall + gz_off
             ghx = gx - buildArea.begin.x
             ghz = gz - buildArea.begin.z
             if 0 <= ghx < buildArea.size.x and 0 <= ghz < buildArea.size.z:
-                local_g = int(heightmap[ghx][ghz])
-                if local_g < gate_base_y:
-                    # Fill up terrain to gate level
-                    for fy in range(local_g, gate_base_y):
-                        editor.placeBlock((gx, fy, gz), Block("stone_bricks"))
-                    editor.placeBlock((gx, gate_base_y, gz), Block("cobblestone"))
-                elif local_g > gate_base_y + 1:
-                    # Cut down terrain to gate level
-                    for fy in range(gate_base_y + 1, local_g + 4):
-                        editor.placeBlock((gx, fy, gz), Block("air"))
-                    editor.placeBlock((gx, gate_base_y, gz), Block("cobblestone"))
+                ground_at = int(heightmap[ghx][ghz])
+                # Remove blocks above the ground so you can actually walk through
+                for gy in range(ground_at, gate_base_y + 7):
+                    editor.placeBlock((gx, gy, gz), Block("air"))
+                editor.placeBlock((gx, ground_at - 1, gz), Block("cobblestone"))
 
     keep_h = 15
-    glass_colors = ["red_stained_glass", "blue_stained_glass", "yellow_stained_glass", 
+    glass_colors = ["red_stained_glass", "blue_stained_glass", "yellow_stained_glass",
                     "green_stained_glass", "purple_stained_glass", "cyan_stained_glass"]
 
     print("building keep...")
@@ -332,31 +361,31 @@ def build_castle():
         for dz in range(-25, 35):
             x = cx + dx
             z = cz + dz
-            
+
             if is_inside(dx, dz):
                 wall_flag = is_wall(dx, dz)
-                
+
                 # solid base
                 hx, hz = x - buildArea.begin.x, z - buildArea.begin.z
                 local_ground = int(heightmap[hx][hz]) if (0 <= hx < buildArea.size.x and 0 <= hz < buildArea.size.z) else center_y
 
                 for fy in range(local_ground - 5, keep_base_y):
                     editor.placeBlock((x, fy, z), get_random_wall_block())
-                
+
                 # glowstone pattern on floor
                 if wall_flag == False and dx % 5 == 0 and dz % 5 == 0:
                     editor.placeBlock((x, keep_base_y, z), Block("glowstone"))
                 else:
                     editor.placeBlock((x, keep_base_y, z), Block("cobblestone"))
-                
+
                 # pick window colour
                 col_index = (abs(dx) * 7 + abs(dz) * 3) % len(glass_colors)
                 w_block = Block(glass_colors[col_index])
-                
+
                 door_flag = False
                 if dz == 30 and -2 <= dx <= 2:
                     door_flag = True
-                
+
                 for y in range(keep_base_y + 1, keep_base_y + keep_h):
                     if wall_flag:
                         if door_flag == True and y <= keep_base_y + 4:
@@ -367,7 +396,7 @@ def build_castle():
                             editor.placeBlock((x, y, z), get_random_wall_block())
                     else:
                         editor.placeBlock((x, y, z), Block("air"))
-                        
+
                 # lights on ceiling
                 if wall_flag == False and dx % 5 == 0 and dz % 5 == 0:
                     editor.placeBlock((x, keep_base_y + keep_h - 1, z), Block("glowstone"))
@@ -379,39 +408,82 @@ def build_castle():
         editor.placeBlock((cx + 1, keep_base_y, cz + dz), Block("red_wool"))
 
     throne_z = cz - 18
-    
-    # pedestal
+
+    for dx in range(-3, 4):
+        for dz in range(-2, 3):
+            editor.placeBlock((cx + dx, keep_base_y + 1, throne_z + dz), Block("polished_blackstone"))
+    for dx in range(-3, 4):
+        editor.placeBlock((cx + dx, keep_base_y + 1, throne_z + 3), Block("polished_blackstone_stairs", {"facing": "north"}))
+
     for dx in range(-2, 3):
         for dz in range(-1, 2):
-            editor.placeBlock((cx + dx, keep_base_y + 1, throne_z + dz), Block("gold_block"))
-            
-    # stairs to pedestal
-    editor.placeBlock((cx, keep_base_y + 1, throne_z + 2), Block("stone_brick_stairs", {"facing": "north"}))
-    editor.placeBlock((cx - 1, keep_base_y + 1, throne_z + 2), Block("stone_brick_stairs", {"facing": "north"}))
-    editor.placeBlock((cx + 1, keep_base_y + 1, throne_z + 2), Block("stone_brick_stairs", {"facing": "north"}))
+            editor.placeBlock((cx + dx, keep_base_y + 2, throne_z + dz), Block("gold_block"))
+    for dx in range(-2, 3):
+        editor.placeBlock((cx + dx, keep_base_y + 2, throne_z + 2), Block("polished_blackstone_stairs", {"facing": "north"}))
 
-    # the golden throne
-    ty = keep_base_y + 2
-    editor.placeBlock((cx, ty, throne_z), Block("gold_block")) # seat
-    
+    for dx in range(-1, 2):
+        editor.placeBlock((cx + dx, keep_base_y + 3, throne_z), Block("gold_block"))
+        editor.placeBlock((cx + dx, keep_base_y + 3, throne_z - 1), Block("gold_block"))
+    for dx in range(-1, 2):
+        editor.placeBlock((cx + dx, keep_base_y + 3, throne_z + 1), Block("gold_block"))
+
+    ty = keep_base_y + 4
+
+    # Quartz stair seat
+    editor.placeBlock((cx, ty, throne_z), Block("quartz_stairs", {"facing": "south", "half": "bottom"}))
+
+    # Armrests
+    editor.placeBlock((cx - 1, ty, throne_z), Block("quartz_wall"))
+    editor.placeBlock((cx + 1, ty, throne_z), Block("quartz_wall"))
+
     # backrest
-    editor.placeBlock((cx, ty + 1, throne_z), Block("gold_block"))
-    editor.placeBlock((cx, ty + 2, throne_z), Block("gold_block"))
-    editor.placeBlock((cx, ty + 3, throne_z), Block("gold_block"))
-    
-    # arms
-    editor.placeBlock((cx - 1, ty, throne_z), Block("gold_block"))
-    editor.placeBlock((cx + 1, ty, throne_z), Block("gold_block"))
-    
-    # side pillars
-    editor.placeBlock((cx - 2, ty, throne_z), Block("gold_block"))
-    editor.placeBlock((cx - 2, ty + 1, throne_z), Block("gold_block"))
-    editor.placeBlock((cx + 2, ty, throne_z), Block("gold_block"))
-    editor.placeBlock((cx + 2, ty + 1, throne_z), Block("gold_block"))
-    
-    # lanterns
-    editor.placeBlock((cx - 2, ty + 2, throne_z), Block("lantern"))
-    editor.placeBlock((cx + 2, ty + 2, throne_z), Block("lantern"))
+    editor.placeBlock((cx, ty, throne_z - 1), Block("gold_block"))
+    editor.placeBlock((cx, ty + 1, throne_z - 1), Block("gold_block"))
+    editor.placeBlock((cx, ty + 2, throne_z - 1), Block("gold_block"))
+    editor.placeBlock((cx, ty + 3, throne_z - 1), Block("gold_block"))
+
+    # Extra decoration
+    editor.placeBlock((cx, ty + 4, throne_z - 1), Block("lightning_rod"))
+    editor.placeBlock((cx - 1, ty + 3, throne_z - 1), Block("gold_block"))
+    editor.placeBlock((cx + 1, ty + 3, throne_z - 1), Block("gold_block"))
+    editor.placeBlock((cx - 1, ty + 4, throne_z - 1), Block("end_rod", {"facing": "up"}))
+    editor.placeBlock((cx + 1, ty + 4, throne_z - 1), Block("end_rod", {"facing": "up"}))
+
+    # Side pillars with chains and lanterns
+    for side in [-1, 1]:
+        px = cx + side * 3
+        # Pillar base
+        editor.placeBlock((px, keep_base_y + 1, throne_z), Block("polished_blackstone"))
+        for py in range(keep_base_y + 2, ty + 5):
+            editor.placeBlock((px, py, throne_z), Block("quartz_pillar", {"axis": "y"}))
+        # Pillar cap
+        editor.placeBlock((px, ty + 5, throne_z), Block("gold_block"))
+        editor.placeBlock((px, ty + 6, throne_z), Block("soul_lantern"))
+
+        # Chain + lantern hanging inward
+        editor.placeBlock((cx + side * 2, ty + 4, throne_z), Block("chain", {"axis": "y"}))
+        editor.placeBlock((cx + side * 2, ty + 3, throne_z), Block("lantern", {"hanging": "true"}))
+
+    # Red banners behind the throne
+    for side in [-1, 0, 1]:
+        bx = cx + side * 2
+        editor.placeBlock((bx, ty + 2, throne_z - 2), Block("red_banner", {"rotation": "8"}))
+
+    for dx in range(-3, 4):
+        editor.placeBlock((cx + dx, keep_base_y + 1, throne_z - 3), Block("chiseled_polished_blackstone"))
+    for dz in range(-3, 3):
+        editor.placeBlock((cx - 4, keep_base_y + 1, throne_z + dz), Block("chiseled_polished_blackstone"))
+        editor.placeBlock((cx + 4, keep_base_y + 1, throne_z + dz), Block("chiseled_polished_blackstone"))
+
+    # Glowstone under the throne
+    editor.placeBlock((cx - 1, keep_base_y + 2, throne_z - 1), Block("glowstone"))
+    editor.placeBlock((cx + 1, keep_base_y + 2, throne_z - 1), Block("glowstone"))
+
+    # Summon Technoblade
+    editor.runCommandGlobal(
+        f'summon minecraft:pig {cx} {ty + 1} {throne_z} '
+        f'{{CustomName:\'"Technoblade"\',CustomNameVisible:1b,Invulnerable:1b,Silent:1b,NoAI:1b,NoGravity:1b,PersistenceRequired:1b}}'
+    )
 
     # door canopy
     for dx in range(-3, 4):
@@ -421,11 +493,65 @@ def build_castle():
                 for y in range(keep_base_y + 1, keep_base_y + 5):
                     editor.placeBlock((cx + dx, y, cz + dz), Block(f"{wood}_fence"))
 
+    print("adding interior decor...")
+
+    # Dining tables and benches in the left and right wings of the main hall
+    for wing_center_dx in [-16, 16]:
+        # Two columns of tables per wing
+        for table_dx_off in [-3, 3]:
+            table_dx = wing_center_dx + table_dx_off
+            # Skip if too close to the walls
+            if abs(table_dx) > 23 or abs(table_dx) < 12:
+                continue
+            for table_dz in range(-16, -3, 2):
+                tx = cx + table_dx
+                tz = cz + table_dz
+                # Table
+                editor.placeBlock((tx, keep_base_y + 1, tz), Block(f"{wood}_fence"))
+                editor.placeBlock((tx, keep_base_y + 2, tz), Block(f"{wood}_pressure_plate"))
+                # Candle above every table
+                editor.placeBlock((tx, keep_base_y + 3, tz), Block("candle", {"candles": "3", "lit": "true"}))
+                # Benches
+                editor.placeBlock((tx - 1, keep_base_y + 1, tz), Block(f"{wood}_stairs", {"facing": "east"}))
+                editor.placeBlock((tx + 1, keep_base_y + 1, tz), Block(f"{wood}_stairs", {"facing": "west"}))
+
+    # Bookshelves lining the walls
+    for shelf_dz in range(5, 25, 3):
+        for shelf_dx in [-9, 9]:
+            sx = cx + shelf_dx
+            sz = cz + shelf_dz
+            editor.placeBlock((sx, keep_base_y + 1, sz), Block("bookshelf"))
+            editor.placeBlock((sx, keep_base_y + 2, sz), Block("bookshelf"))
+            if random.random() < 0.3:
+                editor.placeBlock((sx, keep_base_y + 3, sz), Block("lantern"))
+
+    # Flower pots along corridor
+    flower_types = ["potted_poppy", "potted_blue_orchid", "potted_allium",
+                    "potted_azure_bluet", "potted_red_tulip", "potted_cornflower"]
+    for pot_dz in range(3, 28, 4):
+        for pot_dx in [-5, 5]:
+            px = cx + pot_dx
+            pz = cz + pot_dz
+            editor.placeBlock((px, keep_base_y + 1, pz), Block("polished_andesite"))
+            editor.placeBlock((px, keep_base_y + 2, pz), Block(random.choice(flower_types)))
+
+    # Wall torches
+    for torch_dx in range(-22, 23, 4):
+        editor.placeBlock((cx + torch_dx, keep_base_y + 3, cz - 19), Block("wall_torch", {"facing": "south"}))
+    # Side walls
+    for torch_dz in range(-17, -1, 4):
+        editor.placeBlock((cx - 24, keep_base_y + 3, cz + torch_dz), Block("wall_torch", {"facing": "east"}))
+        editor.placeBlock((cx + 24, keep_base_y + 3, cz + torch_dz), Block("wall_torch", {"facing": "west"}))
+    # Narrow wing walls
+    for torch_dz in range(3, 28, 4):
+        editor.placeBlock((cx - 9, keep_base_y + 3, cz + torch_dz), Block("wall_torch", {"facing": "east"}))
+        editor.placeBlock((cx + 9, keep_base_y + 3, cz + torch_dz), Block("wall_torch", {"facing": "west"}))
+
     print("building entrance stairs...")
 
-    # Variables for the L-shape stairs
+    # L-shaped staircase: first goes south, then turns west to reach the ground
     s_y = keep_base_y
-    # 1. Straight run South (5 wide)
+    # Straight run heading south from the keep door
     for dz in range(31, 38):
         for dx in range(-2, 3):
             x = cx + dx
@@ -438,8 +564,9 @@ def build_castle():
                 g_y = int(heightmap[hx][hz])
                 for fy in range(g_y - 2, s_y):
                     editor.placeBlock((x, fy, z), Block("stone_bricks"))
-        s_y -= 1  # Go down one step
+        s_y -= 1
 
+    # Flat landing platform where the staircase turns
     for dx in range(-2, 3):
         for dz in range(38, 43):
             x = cx + dx
@@ -451,18 +578,20 @@ def build_castle():
                 for fy in range(g_y - 2, s_y):
                     editor.placeBlock((x, fy, z), Block("stone_bricks"))
 
-    cur_x = cx - 3  # Start the next run just west of the landing
+    # Start the westward descent
+    cur_x = cx - 3
 
-    # 2. Turn West and descend to ground
+    # Keep going west, placing steps until ground level
     while True:
         # Check ground height at the current X position
         check_hx = cur_x - buildArea.begin.x
-        check_hz = (cz + 40) - buildArea.begin.z  # middle of the landing z-range
-        if not (0 <= check_hx < buildArea.size.x and 0 <= check_hz < buildArea.size.z): break
+        check_hz = (cz + 40) - buildArea.begin.z
+        if not (0 <= check_hx < buildArea.size.x and 0 <= check_hz < buildArea.size.z):
+            break
 
         g_y = int(heightmap[check_hx][check_hz])
 
-        # If we reached the ground level or below, build a platform and stop
+        # final landing platform
         if s_y <= g_y:
             for px in range(cur_x - 2, cur_x + 1):
                 for pz in range(38, 43):
@@ -475,7 +604,7 @@ def build_castle():
                             editor.placeBlock((px, fy, cz + pz), Block("stone_bricks"))
             break
 
-        # Build the 5-wide stair step going West (5 blocks deep in z)
+        # Stairs going west
         for dz in range(38, 43):
             z = cz + dz
             editor.placeBlock((cur_x, s_y, z), Block("stone_brick_stairs", {"facing": "east"}))
@@ -487,8 +616,8 @@ def build_castle():
                 for fy in range(g_y - 2, s_y):
                     editor.placeBlock((cur_x, fy, z), Block("stone_bricks"))
 
-        cur_x -= 1  # Move West
-        s_y -= 1  # Go down
+        cur_x -= 1
+        s_y -= 1
 
     print("doing roofs...")
     roof_base = keep_base_y + keep_h
@@ -502,14 +631,14 @@ def build_castle():
                     ha = min(dz + 20, 0 - dz)
                 else:
                     ha = -1
-                    
+
                 if -10 <= dx <= 10 and -20 <= dz <= 30:
                     hb = min(dx + 10, 10 - dx)
                 else:
                     hb = -1
-                    
+
                 target_h = max(ha, hb)
-                
+
                 if target_h >= 0:
                     roof_y = roof_base + target_h
                     if is_wall(dx, dz):
@@ -519,15 +648,15 @@ def build_castle():
 
     print("building towers...")
     corners = [(-25, -20), (25, -20), (-25, 0), (25, 0), (-10, 30), (10, 30)]
-    tower_h = keep_h + 15 
-    
+    tower_h = keep_h + 15
+
     for t in corners:
         tx = cx + t[0]
         tz = cz + t[1]
-        
+
         for dy in range(tower_h):
             y = keep_base_y + dy
-            
+
             # foundation for towers
             if dy == 0:
                 hx, hz = tx - buildArea.begin.x, tz - buildArea.begin.z
@@ -543,7 +672,7 @@ def build_castle():
                 for dz in range(-4, 4):
                     if math.sqrt((dx + 0.5)**2 + (dz + 0.5)**2) <= 4.0:
                         editor.placeBlock((tx + dx, y, tz + dz), get_random_wall_block())
-                        
+
         # tower roofs
         t_roof_base = keep_base_y + tower_h
         for dy in range(8):
@@ -555,15 +684,13 @@ def build_castle():
                         editor.placeBlock((tx + dx, y, tz + dz), get_random_roof_block())
 
     print("filling in water within the castle grounds - making islands")
-    # Use two heightmaps to reliably detect water:
-    # MOTION_BLOCKING includes water, OCEAN_FLOOR does not.
-    # If MOTION_BLOCKING > OCEAN_FLOOR at a spot, the difference is water.
+    # Compare two heightmaps to detect water columns:
+    # where MOTION_BLOCKING is higher than OCEAN_FLOOR, there's water
     hm_surface = worldSlice.heightmaps["MOTION_BLOCKING"]
     hm_floor = worldSlice.heightmaps["OCEAN_FLOOR"]
 
-    # Simple value-noise island generator
-    # First pass: collect all water cells
-    water_cells = {}  # (dx, dz) -> (x, z, hx, hz, surface_y, floor_y)
+    # Collect all water cells inside the castle walls
+    water_cells = {}
     for dx in range(-radius, radius + 1):
         for dz in range(-radius, radius + 1):
             if dx**2 + dz**2 <= radius**2:
@@ -582,12 +709,11 @@ def build_castle():
     island_seed = random.randint(0, 999999)
     rng_islands = random.Random(island_seed)
     for (dx, dz) in water_cells:
-        # Sparse island seeds
         if rng_islands.random() < 0.008:
             island_r = rng_islands.uniform(3, 8)
             island_centers.append((dx, dz, island_r))
 
-    # Also seed islands along the shoreline (where water meets land) for natural bridging
+    # Extra island seeds along the shoreline so land bridges form naturally
     for (dx, dz) in water_cells:
         for ndx, ndz in [(dx+1,dz),(dx-1,dz),(dx,dz+1),(dx,dz-1)]:
             if (ndx, ndz) not in water_cells and ndx**2 + ndz**2 <= radius**2:
@@ -596,7 +722,7 @@ def build_castle():
                     island_centers.append((dx, dz, island_r))
                 break
 
-    # For each water cell, check if it falls inside any island
+    # Fill in water cells that fall within an island radius
     water_filled = 0
     for (dx, dz), (x, z, hx, hz, surface_y, floor_y) in water_cells.items():
         water_top = surface_y - 1
@@ -618,7 +744,7 @@ def build_castle():
             top_block = random.choice(ground_textures)
             editor.placeBlock((x, water_top, z), Block(top_block))
 
-            # Add occasional grass/vegetation on top
+            # Occasionally place some plants
             if random.random() < 0.15:
                 editor.placeBlock((x, water_top + 1, z), Block("short_grass"))
             elif random.random() < 0.04:
@@ -632,18 +758,18 @@ def build_castle():
     print("spawning huts and deposits...")
     huts_list = []
     options = ["blacksmith", "merchant", "hay", "coal_deposit", "iron_deposit", "copper_deposit"]
-    
+    villager_names = ["Jeff", "Joe", "Tomás", "Chuck", "Pedro", "Hans", "Greta", "Boris", "Luigi", "Yuki"]
+
     for dx in range(-45, 46):
         for dz in range(-45, 46):
             dist_center = math.sqrt(dx**2 + dz**2)
-            dist_gate = math.sqrt(dx**2 + (dz - radius)**2)
-            
+
             x = cx + dx
             z = cz + dz
             hx = x - buildArea.begin.x
             hz = z - buildArea.begin.z
-            
-            ground_y = heightmap[hx][hz]
+
+            ground_y = int(heightmap[hx][hz])
             # check if empty space
             if dist_center < 45 and not is_inside(dx, dz) and not is_stairs(dx, dz):
                 if 0 <= hx < buildArea.size.x and 0 <= hz < buildArea.size.z:
@@ -654,20 +780,52 @@ def build_castle():
                         editor.placeBlock((x, ground_y - 1, z), Block(t_block))
 
                 # maybe spawn a hut
-                if dist_gate > 12 and random.random() < 0.02:
+                if random.random() < 0.02:
                     too_close = False
                     for prev_hut in huts_list:
                         hut_dist = math.sqrt((dx - prev_hut[0])**2 + (dz - prev_hut[1])**2)
                         if hut_dist < 7:
                             too_close = True
                             break
-                    
+
                     if too_close == False:
+                        # Drill down to find actual solid ground (skip logs, leaves, etc.)
+                        hut_y = int(heightmap[hx][hz])
+                        while hut_y > -64:
+                            try:
+                                blk = worldSlice.getBlockGlobal((x, hut_y - 1, z)).id
+                                if "log" in blk or "leaves" in blk or "vine" in blk or "bamboo" in blk:
+                                    hut_y -= 1
+                                else:
+                                    break
+                            except:
+                                break
+
                         huts_list.append((dx, dz))
                         h_type = random.choice(options)
-                        build_hut(x, ground_y, z, h_type, wood, editor)
+                        build_hut(x, hut_y, z, h_type, wood, editor)
+
+                        # Spawn a few named villagers around each hut
+                        num_villagers = random.randint(1, 3)
+                        for _v in range(num_villagers):
+                            v_name = random.choice(villager_names)
+                            v_x = x + random.randint(-1, 1)
+                            v_z = z + random.randint(-1, 1)
+                            v_y = int(hut_y) + 1
+                            editor.runCommandGlobal(
+                                f'summon minecraft:villager {v_x} {v_y} {v_z} '
+                                f'{{CustomName:\'"{v_name}"\',CustomNameVisible:1b}}'
+                            )
 
     print("done! generated", len(huts_list), "huts")
 
 if __name__ == "__main__":
     build_castle()
+
+
+
+
+
+
+
+
