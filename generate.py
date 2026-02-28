@@ -5,6 +5,9 @@ from gdpc import Editor, Block
 
 editor = Editor(buffering=True)
 
+# global stair direction: randomly set to "west" or "east" in build_castle()
+stair_direction = "west"
+
 # picks random block for walls
 def get_random_wall_block():
     blocks = [
@@ -161,13 +164,21 @@ def is_stairs(dx, dz):
     # Straight run going south from the keep entrance
     if -3 <= dx <= 3 and 31 <= dz <= 37:
         return True
-    # Landing platform and the westward descent
-    if -50 <= dx <= 3 and 38 <= dz <= 43:
-        return True
+    # Landing platform and the descent (west or east depending on stair_direction)
+    if stair_direction == "west":
+        if -50 <= dx <= 3 and 38 <= dz <= 43:
+            return True
+    else:
+        if -3 <= dx <= 50 and 38 <= dz <= 43:
+            return True
     return False
 
 # main function to build castle
 def build_castle():
+    global stair_direction
+    stair_direction = random.choice(["west", "east"])
+    print("stair direction:", stair_direction)
+
     buildArea = editor.getBuildArea()
     worldSlice = editor.loadWorldSlice(buildArea.toRect(), cache=True)
     heightmap = worldSlice.heightmaps["MOTION_BLOCKING_NO_LEAVES"]
@@ -549,7 +560,7 @@ def build_castle():
 
     print("building entrance stairs...")
 
-    # L-shaped staircase: first goes south, then turns west to reach the ground
+    # L-shaped staircase: first goes south, then turns west or east to reach the ground
     s_y = keep_base_y
     # Straight run heading south from the keep door
     for dz in range(31, 38):
@@ -578,10 +589,17 @@ def build_castle():
                 for fy in range(g_y - 2, s_y):
                     editor.placeBlock((x, fy, z), Block("stone_bricks"))
 
-    # Start the westward descent
-    cur_x = cx - 3
+    # Start the descent (west or east depending on stair_direction)
+    if stair_direction == "west":
+        cur_x = cx - 3
+        x_step = -1
+        stair_facing = "east"
+    else:
+        cur_x = cx + 3
+        x_step = 1
+        stair_facing = "west"
 
-    # Keep going west, placing steps until ground level
+    # Keep going in the chosen direction, placing steps until ground level
     while True:
         # Check ground height at the current X position
         check_hx = cur_x - buildArea.begin.x
@@ -593,7 +611,11 @@ def build_castle():
 
         # final landing platform
         if s_y <= g_y:
-            for px in range(cur_x - 2, cur_x + 1):
+            if stair_direction == "west":
+                plat_range = range(cur_x - 2, cur_x + 1)
+            else:
+                plat_range = range(cur_x, cur_x + 3)
+            for px in plat_range:
                 for pz in range(38, 43):
                     editor.placeBlock((px, s_y, cz + pz), Block("stone_bricks"))
                     # Fill under platform
@@ -604,10 +626,10 @@ def build_castle():
                             editor.placeBlock((px, fy, cz + pz), Block("stone_bricks"))
             break
 
-        # Stairs going west
+        # Stairs going in the chosen direction
         for dz in range(38, 43):
             z = cz + dz
-            editor.placeBlock((cur_x, s_y, z), Block("stone_brick_stairs", {"facing": "east"}))
+            editor.placeBlock((cur_x, s_y, z), Block("stone_brick_stairs", {"facing": stair_facing}))
 
             # Fill under
             hx, hz = cur_x - buildArea.begin.x, z - buildArea.begin.z
@@ -616,7 +638,7 @@ def build_castle():
                 for fy in range(g_y - 2, s_y):
                     editor.placeBlock((cur_x, fy, z), Block("stone_bricks"))
 
-        cur_x -= 1
+        cur_x += x_step
         s_y -= 1
 
     print("doing roofs...")
