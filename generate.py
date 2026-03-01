@@ -1,6 +1,10 @@
 import sys
 import math
 import random
+
+import numpy as np
+from matplotlib import pyplot as plt
+
 from gdpc import Editor, Block
 
 editor = Editor(buffering=True)
@@ -306,6 +310,17 @@ def build_castle():
     worldSlice = editor.loadWorldSlice(buildArea.toRect(), cache=True)
     heightmap = worldSlice.heightmaps["MOTION_BLOCKING_NO_LEAVES"]
 
+    # height map plot for terrain evaluation
+    plt.figure(figsize=(8, 6))
+    plt.imshow(heightmap.T, cmap='terrain', origin='lower')
+    plt.colorbar(label='Y Coordinate (Height)')
+    plt.title('Terrain Evaluation: Surface Heightmap')
+    plt.xlabel('Local X')
+    plt.ylabel('Local Z')
+    plt.tight_layout()
+    plt.savefig('terrain_map.png')
+    plt.close()
+
     # find the middle
     cx = buildArea.begin.x + buildArea.size.x // 2
     cz = buildArea.begin.z + buildArea.size.z // 2
@@ -376,13 +391,11 @@ def build_castle():
                     max_surrounding_y = out_y
 
         # ensure the wall is at least 10 blocks taller than the highest nearby point
-        # Cap the extra height so walls never get absurdly tall
+        # cap the height so walls never get too tall
         local_wall_h = max(wall_height, (max_surrounding_y - base_y) + 10)
         local_wall_h = min(local_wall_h, wall_height + 50)
 
-        # Smooth out sudden jumps in base_y so the wall doesn't teleport
-        # up or down, but still gradually returns to the true ground level.
-        # Allow the base to change by at most 3 blocks per column.
+        # smooth out the wall, so it won't become super jagged
         max_step = 3
         if prev_y is not None:
             if base_y < prev_y - max_step:
@@ -958,6 +971,19 @@ def build_castle():
     # where motion_blocking is higher than ocean_floor, there's water
     hm_surface = worldSlice.heightmaps["MOTION_BLOCKING"]
     hm_floor = worldSlice.heightmaps["OCEAN_FLOOR"]
+
+    # water detection map plot for island generation
+    water_mask = np.where(hm_surface > hm_floor, 1.0, 0.0)
+
+    plt.figure(figsize=(8, 6))
+    plt.imshow(water_mask.T, cmap='Blues', origin='lower')
+    plt.colorbar(ticks=[0, 1], label='0 = Land, 1 = Water')
+    plt.title('Terrain Evaluation: Water Detection')
+    plt.xlabel('Local X')
+    plt.ylabel('Local Z')
+    plt.tight_layout()
+    plt.savefig('water_map.png')
+    plt.close()
 
     # collect all water cells inside the castle walls
     water_cells = {}
