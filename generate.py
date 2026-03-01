@@ -52,7 +52,7 @@ def get_biome_info(editor, x, y, z):
     
     try:
         b = editor.getBiome((x, y, z))
-        if b != None:
+        if b is not None:
             b = b.lower()
             if "taiga" in b or "snow" in b or "pine" in b:
                 wood_type = "spruce"
@@ -80,13 +80,13 @@ def get_biome_info(editor, x, y, z):
 
 # generates a random color and geometric pattern for the floor
 def get_mosaic_block(dx, dz, style, palette, scale1, scale2):
-    # use absolute values to ensure the pattern is perfectly symmetrical 
+    # use absolute values to ensure the pattern is perfectly symmetrical
     # across all 4 quadrants of the keep
     ax, az = abs(dx), abs(dz)
-    
+
     if style == 0:
         # fractal / sierpinski triangle pattern (bitwise xor)
-        idx = (ax ^ az) 
+        idx = (ax ^ az)
     elif style == 1:
         # diagonal diamond / chevron patterns
         idx = (ax // scale1) + (az // scale2)
@@ -96,16 +96,97 @@ def get_mosaic_block(dx, dz, style, palette, scale1, scale2):
     else:
         # plaid / checkerboard patterns
         idx = (ax // scale1) * (az // scale2)
-        
+
     return Block(palette[idx % len(palette)])
 
+# sample nearby blocks and return the most common solid ground block
+def sample_foundation_block(worldSlice, local_x, y, local_z):
+    from collections import Counter
+
+    invalid_keywords = [
+        "leaves", "log", "vine", "bamboo", "mushroom", "flower", "bush",
+        "sapling", "grass", "fern", "air", "water", "lava", "snow",
+        "ice", "fire", "torch", "lantern", "carpet", "azalea",
+        "hanging_roots", "propagule", "cocoa", "bee_nest", "moss_carpet",
+        "tall_grass", "short_grass", "dead_bush", "kelp", "seagrass",
+        "lily_pad", "sugar_cane", "cactus", "sweet_berry", "cave_vines",
+        "glow_lichen", "mangrove_roots", "wood"
+    ]
+
+    sample_offsets = []
+    rng = random.Random()
+    for _ in range(10):
+        sdx = rng.randint(-5, 5)
+        sdz = rng.randint(-5, 5)
+        sample_offsets.append((sdx, sdz))
+
+    block_counts = Counter()
+    for (sdx, sdz) in sample_offsets:
+        sx = local_x + sdx
+        sz = local_z + sdz
+        try:
+            blk = worldSlice.getBlockGlobal((sx, y - 1, sz)).id
+            is_invalid = False
+            for kw in invalid_keywords:
+                if kw in blk:
+                    is_invalid = True
+                    break
+            if not is_invalid and blk != "minecraft:air":
+                clean_id = blk.replace("minecraft:", "")
+                block_counts[clean_id] += 1
+        except:
+            pass
+
+    if block_counts:
+        return block_counts.most_common(1)[0][0]
+    else:
+        return "cobblestone"
+
+# find solid ground y at a given x,z by scanning downward
+def find_solid_ground_y(worldSlice, x, y, z):
+    non_solid_keywords = [
+        "air", "leaves", "log", "vine", "bamboo", "water", "lava",
+        "grass", "fern", "flower", "mushroom", "bush", "sapling",
+        "tall_grass", "short_grass", "snow_layer", "fire", "torch",
+        "kelp", "seagrass", "lily_pad", "sugar_cane", "cactus",
+        "hanging_roots", "cave_vines", "glow_lichen", "wood",
+        "moss_carpet", "dead_bush", "sweet_berry"
+    ]
+    scan_y = y
+    while scan_y > -64:
+        try:
+            blk = worldSlice.getBlockGlobal((x, scan_y, z)).id
+            is_non_solid = False
+            for kw in non_solid_keywords:
+                if kw in blk:
+                    is_non_solid = True
+                    break
+            if not is_non_solid:
+                return scan_y
+        except:
+            pass
+        scan_y -= 1
+    return y
+
 # builds small hut or deposit
-def build_hut(local_x, y, local_z, h_type, wood, editor):
+def build_hut(local_x, y, local_z, h_type, wood, editor, worldSlice=None):
     # clear space first
     for dx in range(-2, 3):
         for dz in range(-2, 3):
             for dy in range(1, 5):
                 editor.placeBlock((local_x + dx, y + dy, local_z + dz), Block("air"))
+
+    # sample nearby blocks to determine foundation material
+    # and place a foundation layer below the hut floor
+    if h_type not in ["coal_deposit", "iron_deposit", "copper_deposit", "hay"]:
+        if worldSlice is not None:
+            foundation_block = sample_foundation_block(worldSlice, local_x, y, local_z)
+        else:
+            foundation_block = "cobblestone"
+
+        for dx in range(-2, 3):
+            for dz in range(-2, 3):
+                editor.placeBlock((local_x + dx, y - 1, local_z + dz), Block(foundation_block))
 
     if h_type == "blacksmith":
         # cobblestone floor and slab roof
@@ -140,13 +221,15 @@ def build_hut(local_x, y, local_z, h_type, wood, editor):
         editor.placeBlock((local_x + 1, y + 1, local_z), Block("chest", {"facing": "north"}))
 
     elif h_type == "hay":
-        for dx in range(-1, 2):
-            for dz in range(-1, 2):
-                editor.placeBlock((local_x + dx, y, local_z + dz), Block("dirt_path"))
-        editor.placeBlock((local_x, y + 1, local_z), Block("hay_block", {"axis": "y"}))
-        editor.placeBlock((local_x + 1, y + 1, local_z), Block("hay_block", {"axis": "x"}))
-        editor.placeBlock((local_x, y + 2, local_z), Block("hay_block", {"axis": "y"}))
-        editor.placeBlock((local_x - 1, y + 1, local_z), Block("composter"))
+        # find solid ground so hay doesn't float
+        if worldSlice is not None:
+            hay_ground = find_solid_ground_y(worldSlice, local_x, y, local_z)
+        else:
+            hay_ground = y
+        editor.placeBlock((local_x, hay_ground + 1, local_z), Block("hay_block", {"axis": "y"}))
+        editor.placeBlock((local_x + 1, hay_ground + 1, local_z), Block("hay_block", {"axis": "x"}))
+        editor.placeBlock((local_x, hay_ground + 2, local_z), Block("hay_block", {"axis": "y"}))
+        editor.placeBlock((local_x - 1, hay_ground + 1, local_z), Block("composter"))
 
     elif h_type in ["coal_deposit", "iron_deposit", "copper_deposit"]:
         if h_type == "coal_deposit":
@@ -156,12 +239,25 @@ def build_hut(local_x, y, local_z, h_type, wood, editor):
         else:
             ore = "raw_copper_block"
 
+        # find actual solid ground for each ore block so they don't float
         for dx in range(-1, 2):
             for dz in range(-1, 2):
-                editor.placeBlock((local_x + dx, y, local_z + dz), Block("cobblestone"))
                 if random.random() < 0.6:
-                    editor.placeBlock((local_x + dx, y + 1, local_z + dz), Block(ore))
-        editor.placeBlock((local_x, y + 2, local_z), Block(ore))
+                    ox = local_x + dx
+                    oz = local_z + dz
+                    if worldSlice is not None:
+                        ground = find_solid_ground_y(worldSlice, ox, y, oz)
+                    else:
+                        ground = y
+                    editor.placeBlock((ox, ground, oz), Block(ore))
+                    editor.placeBlock((ox, ground + 1, oz), Block(ore))
+        if worldSlice is not None:
+            center_ground = find_solid_ground_y(worldSlice, local_x, y, local_z)
+        else:
+            center_ground = y
+        editor.placeBlock((local_x, center_ground, local_z), Block(ore))
+        editor.placeBlock((local_x, center_ground + 1, local_z), Block(ore))
+        editor.placeBlock((local_x, center_ground + 2, local_z), Block(ore))
 
 # checks if inside keep bounds
 def is_inside(dx, dz):
@@ -187,10 +283,16 @@ def is_stairs(dx, dz):
         return True
     # landing platform and the descent (west or east depending on stair_direction)
     if stair_direction == "west":
-        if -50 <= dx <= 3 and 38 <= dz <= 43:
+        if -22 <= dx <= 3 and 38 <= dz <= 43:
+            return True
+        # potential north turn
+        if -22 <= dx <= -14 and 0 <= dz <= 43:
             return True
     else:
-        if -3 <= dx <= 50 and 38 <= dz <= 43:
+        if -3 <= dx <= 22 and 38 <= dz <= 43:
+            return True
+        # potential north turn
+        if 14 <= dx <= 22 and 0 <= dz <= 43:
             return True
     return False
 
@@ -259,6 +361,7 @@ def build_castle():
         # make walls taller if next to a cliff
         max_surrounding_y = ground_y
         angle = math.atan2(z - cz, x - cx)
+        hm_ground = worldSlice.heightmaps["OCEAN_FLOOR"]
         for out_dist in range(1, 9):
             ox = int(x + out_dist * math.cos(angle))
             oz = int(z + out_dist * math.sin(angle))
@@ -268,19 +371,24 @@ def build_castle():
             if (ox, oz) in perimeter_set:
                 continue
             if 0 <= ohx < buildArea.size.x and 0 <= ohz < buildArea.size.z:
-                out_y = int(heightmap[ohx][ohz])
+                out_y = int(hm_ground[ohx][ohz])
                 if out_y > max_surrounding_y:
                     max_surrounding_y = out_y
 
         # ensure the wall is at least 10 blocks taller than the highest nearby point
+        # Cap the extra height so walls never get absurdly tall
         local_wall_h = max(wall_height, (max_surrounding_y - base_y) + 10)
+        local_wall_h = min(local_wall_h, wall_height + 50)
 
-        # stop walls going too deep in ravines
+        # Smooth out sudden jumps in base_y so the wall doesn't teleport
+        # up or down, but still gradually returns to the true ground level.
+        # Allow the base to change by at most 3 blocks per column.
+        max_step = 3
         if prev_y is not None:
-            if prev_y - ground_y > 10:
-                base_y = prev_y
-            elif ground_y - prev_y > 10:
-                base_y = ground_y
+            if base_y < prev_y - max_step:
+                base_y = prev_y - max_step
+            elif base_y > prev_y + max_step:
+                base_y = prev_y + max_step
 
         wall_bases.append((x, base_y, z, ground_y, local_wall_h))
         prev_y = base_y
@@ -295,7 +403,7 @@ def build_castle():
 
         for y in range(base_y, base_y + curr_wall_h):
             editor.placeBlock((x, y, z), get_random_wall_block())
-        for fy in range(max(-64, base_y - 1), max(-65, ground_y - 16), -1):
+        for fy in range(base_y - 1, ground_y - 15, -1):
             editor.placeBlock((x, fy, z), get_random_wall_block())
         # little crenellations
         if random.random() < 0.5:
@@ -391,7 +499,7 @@ def build_castle():
     print("building keep...")
     # --- setup random mosaic variables for this generation ---
     all_terracotta = [
-        "white", "light_gray", "gray", "black", "brown", "red", "orange", 
+        "white", "light_gray", "gray", "black", "brown", "red", "orange",
         "yellow", "lime", "green", "cyan", "light_blue", "blue", "purple", "magenta", "pink"
     ]
     # pick a random palette of 3 to 5 colors for this specific castle
@@ -483,8 +591,8 @@ def build_castle():
     editor.placeBlock((cx, ty, throne_z), Block("quartz_stairs", {"facing": "south", "half": "bottom"}))
 
     # armrests
-    editor.placeBlock((cx - 1, ty, throne_z), Block("quartz_wall"))
-    editor.placeBlock((cx + 1, ty, throne_z), Block("quartz_wall"))
+    editor.placeBlock((cx - 1, ty, throne_z), Block("end_stone_brick_wall"))
+    editor.placeBlock((cx + 1, ty, throne_z), Block("end_stone_brick_wall"))
 
     # backrest
     editor.placeBlock((cx, ty, throne_z - 1), Block("gold_block"))
@@ -511,7 +619,7 @@ def build_castle():
         editor.placeBlock((px, ty + 6, throne_z), Block("soul_lantern"))
 
         # chain + lantern hanging inward
-        editor.placeBlock((cx + side * 2, ty + 4, throne_z), Block("chain", {"axis": "y"}))
+        editor.placeBlock((cx + side * 2, ty + 4, throne_z), Block("iron_bars"))
         editor.placeBlock((cx + side * 2, ty + 3, throne_z), Block("lantern", {"hanging": "true"}))
 
     # red banners behind the throne
@@ -599,20 +707,22 @@ def build_castle():
 
     print("building entrance stairs...")
 
-    # l-shaped staircase: first goes south, then turns west or east to reach the ground
+    # keep track of placed stairs, later used for clearing the vegetation from above them
+    placed_stair_positions = {}
     s_y = keep_base_y
     # straight run heading south from the keep door
     for dz in range(31, 38):
         for dx in range(-2, 3):
             x = cx + dx
             z = cz + dz
+            placed_stair_positions[(x, z)] = s_y
             editor.placeBlock((x, s_y, z), Block("stone_brick_stairs", {"facing": "north"}))
 
             # fill under the stairs
             hx, hz = x - buildArea.begin.x, z - buildArea.begin.z
             if 0 <= hx < buildArea.size.x and 0 <= hz < buildArea.size.z:
                 g_y = int(heightmap[hx][hz])
-                for fy in range(max(-64, g_y - 2), s_y):
+                for fy in range(g_y - 2, s_y):
                     editor.placeBlock((x, fy, z), Block("stone_bricks"))
         s_y -= 1
 
@@ -621,11 +731,12 @@ def build_castle():
         for dz in range(38, 43):
             x = cx + dx
             z = cz + dz
+            placed_stair_positions[(x, z)] = s_y
             editor.placeBlock((x, s_y, z), Block("stone_bricks"))
             hx, hz = x - buildArea.begin.x, z - buildArea.begin.z
             if 0 <= hx < buildArea.size.x and 0 <= hz < buildArea.size.z:
                 g_y = int(heightmap[hx][hz])
-                for fy in range(max(-64, g_y - 2), s_y):
+                for fy in range(g_y - 2, s_y):
                     editor.placeBlock((x, fy, z), Block("stone_bricks"))
 
     # start the descent (west or east depending on stair_direction)
@@ -647,8 +758,83 @@ def build_castle():
             break
 
         g_y = int(heightmap[check_hx][check_hz])
+        
+        # check if we need to turn north to avoid the outer wall
+        should_turn_north = False
+        stair_dz_outer = 43
+        wall_x_at_stair = math.sqrt(max(0, radius**2 - stair_dz_outer**2))
 
-        # final landing platform
+        # turning platform is 4 blocks wide, leaving 3 blocks as margin
+        turn_threshold = wall_x_at_stair - 4 - 3
+        if stair_direction == "west" and (cx - cur_x) >= turn_threshold:
+            should_turn_north = True
+        elif stair_direction == "east" and (cur_x - cx) >= turn_threshold:
+            should_turn_north = True
+
+        if should_turn_north:
+            print("Stairs turning north to avoid wall...")
+            # building a landing platform for the turn
+            if stair_direction == "west":
+                plat_x_range = range(cur_x - 4, cur_x + 1)
+            else:
+                plat_x_range = range(cur_x, cur_x + 5)
+
+            for px in plat_x_range:
+                for pz in range(38, 43):
+                    placed_stair_positions[(px, cz + pz)] = s_y
+                    editor.placeBlock((px, s_y, cz + pz), Block("stone_bricks"))
+                    # fill under
+                    lhx, lhz = px - buildArea.begin.x, (cz + pz) - buildArea.begin.z
+                    if 0 <= lhx < buildArea.size.x and 0 <= lhz < buildArea.size.z:
+                        lg_y = int(heightmap[lhx][lhz])
+                        for fy in range(lg_y - 2, s_y):
+                            editor.placeBlock((px, fy, cz + pz), Block("stone_bricks"))
+            
+            # descend north from this platform
+            cur_z = cz + 37
+            
+            north_stair_x_range = plat_x_range
+
+            while True:
+                # check ground at the center of the new stair segment
+                check_hx = (cur_x) - buildArea.begin.x
+                check_hz = (cur_z) - buildArea.begin.z
+                if not (0 <= check_hx < buildArea.size.x and 0 <= check_hz < buildArea.size.z):
+                    break
+                g_y_north = int(heightmap[check_hx][check_hz])
+                
+                if s_y <= g_y_north:
+                    # final landing for north stairs
+                    for px in north_stair_x_range:
+                        for pz_off in range(3):
+                            pz = cur_z + pz_off
+                            placed_stair_positions[(px, pz)] = s_y
+                            editor.placeBlock((px, s_y, pz), Block("stone_bricks"))
+                            # fill under
+                            lhx, lhz = px - buildArea.begin.x, pz - buildArea.begin.z
+                            if 0 <= lhx < buildArea.size.x and 0 <= lhz < buildArea.size.z:
+                                lg_y = int(heightmap[lhx][lhz])
+                                for fy in range(lg_y - 2, s_y):
+                                    editor.placeBlock((px, fy, pz), Block("stone_bricks"))
+                    break
+                
+                # place stairs
+                for px in north_stair_x_range:
+                    placed_stair_positions[(px, cur_z)] = s_y
+                    editor.placeBlock((px, s_y, cur_z), Block("stone_brick_stairs", {"facing": "south"}))
+                    # fill under
+                    lhx, lhz = px - buildArea.begin.x, cur_z - buildArea.begin.z
+                    if 0 <= lhx < buildArea.size.x and 0 <= lhz < buildArea.size.z:
+                        lg_y = int(heightmap[lhx][lhz])
+                        for fy in range(lg_y - 2, s_y):
+                            editor.placeBlock((px, fy, cur_z), Block("stone_bricks"))
+                            
+                cur_z -= 1
+                s_y -= 1
+            
+            break
+
+        # final landing platform if the stairs don't turn
         if s_y <= g_y:
             if stair_direction == "west":
                 plat_range = range(cur_x - 2, cur_x + 1)
@@ -656,29 +842,49 @@ def build_castle():
                 plat_range = range(cur_x, cur_x + 3)
             for px in plat_range:
                 for pz in range(38, 43):
+                    placed_stair_positions[(px, cz + pz)] = s_y
                     editor.placeBlock((px, s_y, cz + pz), Block("stone_bricks"))
                     # fill under platform
                     lhx, lhz = px - buildArea.begin.x, (cz + pz) - buildArea.begin.z
                     if 0 <= lhx < buildArea.size.x and 0 <= lhz < buildArea.size.z:
                         lg_y = int(heightmap[lhx][lhz])
-                        for fy in range(max(-64, lg_y - 2), s_y):
+                        for fy in range(lg_y - 2, s_y):
                             editor.placeBlock((px, fy, cz + pz), Block("stone_bricks"))
             break
 
         # stairs going in the chosen direction
         for dz in range(38, 43):
             z = cz + dz
+            placed_stair_positions[(cur_x, z)] = s_y
             editor.placeBlock((cur_x, s_y, z), Block("stone_brick_stairs", {"facing": stair_facing}))
 
             # fill under
             hx, hz = cur_x - buildArea.begin.x, z - buildArea.begin.z
             if 0 <= hx < buildArea.size.x and 0 <= hz < buildArea.size.z:
-                g_y = int(heightmap[hx][hz])
-                for fy in range(max(-64, g_y - 2), s_y):
+                g_y_fill = int(heightmap[hx][hz])
+                for fy in range(g_y_fill - 2, s_y):
                     editor.placeBlock((cur_x, fy, z), Block("stone_bricks"))
 
         cur_x += x_step
         s_y -= 1
+
+    # clear vegetation directly above the stairs
+    print("clearing vegetation above stairs...")
+    for (sx, sz), stair_y in placed_stair_positions.items():
+        shx = sx - buildArea.begin.x
+        shz = sz - buildArea.begin.z
+        if 0 <= shx < buildArea.size.x and 0 <= shz < buildArea.size.z:
+            for sy in range(stair_y + 1, keep_base_y + 25):
+                try:
+                    blk_id = worldSlice.getBlockGlobal((sx, sy, sz)).id
+                    if any(s in blk_id for s in ["log", "wood", "leaves", "vine", "bamboo", "cocoa",
+                                                   "mushroom", "bee_nest", "moss_carpet",
+                                                   "hanging_roots", "azalea", "mangrove_roots",
+                                                   "propagule", "bush", "tall_grass", "short_grass",
+                                                   "fern", "dead_bush"]):
+                        editor.placeBlock((sx, sy, sz), Block("air"))
+                except:
+                    pass
 
     print("doing roofs...")
     roof_base = keep_base_y + keep_h
@@ -709,9 +915,10 @@ def build_castle():
 
     print("building towers...")
     corners = [(-25, -20), (25, -20), (-25, 0), (25, 0), (-10, 30), (10, 30)]
-    
+
     # generate a random height for all towers in this specific generation run
     tower_h = keep_h + random.randint(10, 25)
+    print(f"tower height: {tower_h} blocks (keep_h={keep_h} + random={tower_h - keep_h})")
 
     for t in corners:
         tx = cx + t[0]
@@ -724,7 +931,7 @@ def build_castle():
             if dy == 0:
                 hx, hz = tx - buildArea.begin.x, tz - buildArea.begin.z
                 local_ground = int(heightmap[hx][hz]) if (0 <= hx < buildArea.size.x and 0 <= hz < buildArea.size.z) else center_y
-                for fy in range(max(-64, local_ground - 5), keep_base_y):
+                for fy in range(local_ground - 5, keep_base_y):
                     for dx in range(-4, 4):
                         for dz in range(-4, 4):
                             if math.sqrt((dx + 0.5)**2 + (dz + 0.5)**2) <= 4.0:
@@ -756,7 +963,7 @@ def build_castle():
     water_cells = {}
     for dx in range(-radius, radius + 1):
         for dz in range(-radius, radius + 1):
-            if dx**2 + dz**2 <= radius**2:
+            if dx**2 + dz**2 <= radius**2 and not is_stairs(dx, dz):
                 x = cx + dx
                 z = cz + dz
                 hx = x - buildArea.begin.x
@@ -801,7 +1008,7 @@ def build_castle():
 
         if fill:
             # fill with dirt, top with a natural surface block
-            for fy in range(max(-64, water_bottom), water_top + 1):
+            for fy in range(water_bottom, water_top + 1):
                 editor.placeBlock((x, fy, z), Block("dirt"))
 
             top_block = random.choice(ground_textures)
@@ -867,7 +1074,7 @@ def build_castle():
 
                         huts_list.append((dx, dz))
                         h_type = random.choice(options)
-                        build_hut(x, hut_y, z, h_type, wood, editor)
+                        build_hut(x, hut_y, z, h_type, wood, editor, worldSlice)
 
                         # spawn a few villagers around each hut
                         num_villagers = random.randint(1, 3)
