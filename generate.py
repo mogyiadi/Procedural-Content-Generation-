@@ -1064,53 +1064,57 @@ def build_castle():
             hx = x - buildArea.begin.x
             hz = z - buildArea.begin.z
 
-            ground_y = int(heightmap[hx][hz])
-            # check if empty space
-            if dist_center < 45 and not is_inside(dx, dz) and not is_stairs(dx, dz):
-                if 0 <= hx < buildArea.size.x and 0 <= hz < buildArea.size.z:
+            if 0 <= hx < buildArea.size.x and 0 <= hz < buildArea.size.z:
+                ground_y = int(heightmap[hx][hz])
+                # check if empty space
+                if dist_center < 45 and not is_inside(dx, dz) and not is_stairs(dx, dz):
+                    
+                    # Prevent placing ground textures or huts over water
+                    is_water = int(hm_surface[hx][hz]) > int(hm_floor[hx][hz])
+                    
+                    if not is_water:
+                        # random texture blocks
+                        if random.random() < 0.20:
+                            t_block = random.choice(ground_textures)
+                            editor.placeBlock((x, ground_y - 1, z), Block(t_block))
+                            # clear vegetation above (fixes grass/snow sitting on paths)
+                            editor.placeBlock((x, ground_y, z), Block("air"))
 
-                    # random texture blocks
-                    if random.random() < 0.20:
-                        t_block = random.choice(ground_textures)
-                        editor.placeBlock((x, ground_y - 1, z), Block(t_block))
-                        # clear vegetation above (fixes grass/snow sitting on paths)
-                        editor.placeBlock((x, ground_y, z), Block("air"))
-
-                # maybe spawn a hut
-                if random.random() < 0.02:
-                    too_close = False
-                    for prev_hut in huts_list:
-                        hut_dist = math.sqrt((dx - prev_hut[0])**2 + (dz - prev_hut[1])**2)
-                        if hut_dist < 7:
-                            too_close = True
-                            break
-
-                    if too_close == False:
-                        # drill down to find actual solid ground (skip logs, leaves, etc.)
-                        hut_y = int(heightmap[hx][hz])
-                        while hut_y > -64:
-                            try:
-                                blk = worldSlice.getBlockGlobal((x, hut_y - 1, z)).id
-                                if "log" in blk or "leaves" in blk or "vine" in blk or "bamboo" in blk:
-                                    hut_y -= 1
-                                else:
+                        # maybe spawn a hut
+                        if random.random() < 0.02:
+                            too_close = False
+                            for prev_hut in huts_list:
+                                hut_dist = math.sqrt((dx - prev_hut[0])**2 + (dz - prev_hut[1])**2)
+                                if hut_dist < 7:
+                                    too_close = True
                                     break
-                            except:
-                                break
 
-                        huts_list.append((dx, dz))
-                        h_type = random.choice(options)
-                        build_hut(x, hut_y, z, h_type, wood, editor, worldSlice)
+                            if too_close == False:
+                                # drill down to find actual solid ground (skip logs, leaves, etc.)
+                                hut_y = int(heightmap[hx][hz])
+                                while hut_y > -64:
+                                    try:
+                                        blk = worldSlice.getBlockGlobal((x, hut_y - 1, z)).id
+                                        if "log" in blk or "leaves" in blk or "vine" in blk or "bamboo" in blk:
+                                            hut_y -= 1
+                                        else:
+                                            break
+                                    except:
+                                        break
 
-                        # spawn a few villagers around each hut
-                        num_villagers = random.randint(1, 3)
-                        for _v in range(num_villagers):
-                            v_x = x + random.randint(-1, 1)
-                            v_z = z + random.randint(-1, 1)
-                            v_y = int(hut_y) + 1
-                            editor.runCommandGlobal(
-                                f'summon minecraft:villager {v_x} {v_y} {v_z}'
-                            )
+                                huts_list.append((dx, dz))
+                                h_type = random.choice(options)
+                                build_hut(x, hut_y, z, h_type, wood, editor, worldSlice)
+
+                                # spawn a few villagers around each hut
+                                num_villagers = random.randint(1, 3)
+                                for _v in range(num_villagers):
+                                    v_x = x + random.randint(-1, 1)
+                                    v_z = z + random.randint(-1, 1)
+                                    v_y = int(hut_y) + 1
+                                    editor.runCommandGlobal(
+                                        f'summon minecraft:villager {v_x} {v_y} {v_z}'
+                                    )
 
     print("done! generated", len(huts_list), "huts")
 
