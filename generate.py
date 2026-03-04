@@ -1018,6 +1018,8 @@ def build_castle():
                     island_centers.append((dx, dz, island_r))
                 break
 
+    filled_islands = set()
+
     # fill in water cells that fall within an island radius
     water_filled = 0
     for (dx, dz), (x, z, hx, hz, surface_y, floor_y) in water_cells.items():
@@ -1033,6 +1035,8 @@ def build_castle():
                 break
 
         if fill:
+            filled_islands.add((dx, dz)) # Track our new solid land!
+            
             # fill with dirt, top with a natural surface block
             for fy in range(water_bottom, water_top + 1):
                 editor.placeBlock((x, fy, z), Block("dirt"))
@@ -1069,8 +1073,12 @@ def build_castle():
                 # check if empty space
                 if dist_center < 45 and not is_inside(dx, dz) and not is_stairs(dx, dz):
                     
-                    # Prevent placing ground textures or huts over water
+                    # check if original terrain was water
                     is_water = int(hm_surface[hx][hz]) > int(hm_floor[hx][hz])
+                    
+                    # override if we just built an island here!
+                    if (dx, dz) in filled_islands:
+                        is_water = False
                     
                     if not is_water:
                         # random texture blocks
